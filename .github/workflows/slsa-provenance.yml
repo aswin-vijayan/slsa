@@ -2,14 +2,9 @@ name: SLSA Provenance
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Image tag to build and attest"
-        required: true
-        default: "latest"
 
 env:
   IMAGE_REGISTRY: index.docker.io
@@ -20,10 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
 
     outputs:
       image: ${{ steps.image.outputs.image }}
       digest: ${{ steps.build.outputs.digest }}
+      registry-username: ${{ steps.image.outputs.registry-username }}
 
     steps:
       - name: Checkout repository
@@ -39,13 +36,14 @@ jobs:
         id: image
         run: |
           echo "image=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "registry-username=${{ secrets.DOCKERHUB_USERNAME }}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         id: build
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
   provenance:
     needs: [build]
@@ -53,7 +51,6 @@ jobs:
       actions: read
       id-token: write
       packages: write
-    if: startsWith(github.ref, 'refs/tags/')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: ${{ needs.build.outputs.image }}
