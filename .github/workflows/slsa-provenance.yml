@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build and attest"
+        required: true
+        default: "latest"
 
 env:
   IMAGE_REGISTRY: index.docker.io
